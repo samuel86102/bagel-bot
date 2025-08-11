@@ -32,8 +32,11 @@ except:
 # 初始化 LINE Bot
 line_bot_api = LineBotApi(LINE_TOKEN)
 
-# 彙整每位成員的所有進度回報
-all_progress_by_person = {}
+# 根據 push_message.py 的固定名單，建立基礎資料結構
+# 這樣才能知道誰沒有回報
+all_members = ["心龢", "子新", "思凱", "燕和", "葉蓉", "育瑄", "淙富", "雅琪", "聖凱", "江衡", "昀峰"]
+all_progress_by_person = {member: [] for member in all_members}
+
 
 # 讀取並處理 msg_log.csv
 with open("msg_log.csv", "r", encoding="utf-8") as file:
@@ -48,18 +51,12 @@ with open("msg_log.csv", "r", encoding="utf-8") as file:
             if ts.year == target_year and ts.month == target_month and "全年讀經進度回報" in row["message"]:
                 text = row["message"]
 
-
-
                 if "請大家填寫：" in text:
                     text_after_prompt = text.split("請大家填寫：", 1)[1]
-
-                    
-                    lines = text_after_prompt.split('''\\n''')
-
+                    lines = text_after_prompt.split('\\n')
 
                     for line in lines:
-                        line = line.strip()
-                        line = line.replace('\n\n','')
+                        line = line.strip().replace('\n', '')
                         if not line:
                             continue
 
@@ -70,19 +67,24 @@ with open("msg_log.csv", "r", encoding="utf-8") as file:
                             name = match.group(1).strip()
                             progress = match.group(2).strip()
 
-
-                            if progress:
-                                if name not in all_progress_by_person:
-                                    all_progress_by_person[name] = []
-
-                                all_progress_by_person[name].append({
+                            if progress and name in all_progress_by_person:
+                                new_record = {
                                     "timestamp": ts.strftime("%Y-%m-%d"),
                                     "進度": progress
-                                })
+                                }
+                                # 檢查是否為重複紀錄
+                                if new_record not in all_progress_by_person[name]:
+                                    all_progress_by_person[name].append(new_record)
         except (ValueError, KeyError):
             continue
 
-if not all_progress_by_person:
+# 標記無回報的成員
+for name, records in all_progress_by_person.items():
+    if not records:
+        all_progress_by_person[name] = [{"進度": "無回報"}]
+
+
+if not any(records and records[0].get("進度") != "無回報" for records in all_progress_by_person.values()):
     print("⚠️ 找不到指定月份的讀經進度資料。")
     sys.exit(0)
 
@@ -114,7 +116,7 @@ system_prompt = """
 🔸 子新：耶利米書～約珥書 1；馬太福音～羅馬書 11
 
 🔺 2. 各組員的回報情況
-請根據回報的次數與時間，指出每位組員是否有持續回報（例如：穩定回報、回報 O 次、不穩定、本月尚未回報）。
+請根據回報的次數與時間，指出每位組員是否有持續回報（例如：穩定回報(1個月只少3次)、回報 O 次、不穩定、本月尚未回報）。
 → 仍請以「🔸」開頭搭配人名與描述。
 
 🔺 3. 各組員的進展狀況
