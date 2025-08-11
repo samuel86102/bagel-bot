@@ -53,31 +53,23 @@ with open("msg_log.csv", "r", encoding="utf-8") as file:
                 if "請大家填寫：" in text:
                     text_after_prompt = text.split("請大家填寫：", 1)[1]
 
-                    lines = text_after_prompt.split('''\n''')
+                    
+                    lines = text_after_prompt.split('''\\n''')
 
 
                     for line in lines:
                         line = line.strip()
                         line = line.replace('\n\n','')
-                        '''
                         if not line:
                             continue
-                        '''
 
-                        print(line)
-                        input()
 
                         match = re.match(r'''^([\u4e00-\u9fa5]{2,4})：(.*)''', line)
 
-                        print(match)
-                        input()
                         if match:
                             name = match.group(1).strip()
                             progress = match.group(2).strip()
 
-                            print(name)
-                            print(progress)
-                            input()
 
                             if progress:
                                 if name not in all_progress_by_person:
@@ -96,6 +88,11 @@ if not all_progress_by_person:
 
 # 轉換為 JSON 字串
 raw_text = json.dumps(all_progress_by_person, ensure_ascii=False, indent=2)
+
+
+print(raw_text)
+
+input()
 
 # 呼叫 OpenRouter API 進行總結
 headers = {
