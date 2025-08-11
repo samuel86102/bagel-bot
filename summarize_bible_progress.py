@@ -17,16 +17,19 @@ LINE_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
 GROUP_ID = os.getenv("LINE_TEST_GROUP_ID")
 
 # 取得輸入參數（年份、月份）
-if len(sys.argv) != 3:
-    print("❌ 使用方式: python summarize_bible_progress.py <年份> <月份>")
+if len(sys.argv) not in [3, 4]:
+    print("❌ 使用方式: python summarize_bible_progress.py <年份> <月份> [結束月份]")
+    print("例如: python summarize_bible_progress.py 2025 7 (單月)")
+    print("例如: python summarize_bible_progress.py 2025 7 8 (多月，包含7月和8月)")
     sys.exit(1)
 
 try:
     target_year = int(sys.argv[1])
-    target_month = int(sys.argv[2])
-    assert 1 <= target_month <= 12
+    start_month = int(sys.argv[2])
+    end_month = int(sys.argv[3]) if len(sys.argv) == 4 else start_month
+    assert 1 <= start_month <= 12 and 1 <= end_month <= 12 and start_month <= end_month
 except:
-    print("❌ 請輸入有效的年份和月份，例如：2025 6")
+    print("❌ 請輸入有效的年份和月份，例如：2025 6 或 2025 7 8")
     sys.exit(1)
 
 # 初始化 LINE Bot
@@ -48,7 +51,7 @@ with open("msg_log.csv", "r", encoding="utf-8") as file:
 
             ts = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S")
 
-            if ts.year == target_year and ts.month == target_month and "全年讀經進度回報" in row["message"]:
+            if ts.year == target_year and start_month <= ts.month <= end_month and "全年讀經進度回報" in row["message"]:
                 text = row["message"]
 
                 if "請大家填寫：" in text:
@@ -165,7 +168,8 @@ summary = result["choices"][0]["message"]["content"]
 timestamp_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
 report_dir = "report"
 os.makedirs(report_dir, exist_ok=True)
-report_path = os.path.join(report_dir, f"{target_year}年{target_month}月小組讀經_{timestamp_str}.txt")
+report_name = f"{target_year}年{start_month}月" if start_month == end_month else f"{target_year}年{start_month}~{end_month}月"
+report_path = os.path.join(report_dir, f"{report_name}小組讀經_{timestamp_str}.txt")
 
 with open(report_path, "w", encoding="utf-8") as f:
     f.write(summary)
@@ -173,5 +177,5 @@ with open(report_path, "w", encoding="utf-8") as f:
 # 發送到 LINE 群組
 line_bot_api.push_message(GROUP_ID, TextSendMessage(text=summary))
 
-print(f"✅ 已產生 {target_year} 年 {target_month} 月報告並推播。儲存於：{report_path}")
+print(f"✅ 已產生 {report_name} 報告並推播。儲存於：{report_path}")
 
