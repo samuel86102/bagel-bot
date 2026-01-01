@@ -16,6 +16,8 @@ MODEL_NAME = os.getenv("OPENROUTER_MODEL")
 LINE_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
 GROUP_ID = os.getenv("LINE_TEST_GROUP_ID")
 
+PUSH_MSG = False
+
 # 取得輸入參數（年份、月份）
 if len(sys.argv) not in [3, 4]:
     print("❌ 使用方式: python summarize_bible_progress.py <年份> <月份> [結束月份]")
@@ -146,12 +148,52 @@ system_prompt = """
 
 """
 
+
+system_prompt_forall = """
+
+你是一位教會小組的行政助理，請根據下方提供的 JSON 格式的讀經進度紀錄，撰寫一份簡明的讀經進度報告，提供給小組員參考。
+
+這份 JSON 資料彙整了每位組員在指定月份內的所有進度回報。資料的 `key` 是組員姓名，`value` 是一個陣列（array），包含了他們每一次回報的時間戳（`timestamp`）與進度內容（`進度`）。
+
+請依照以下格式與內容撰寫報告：
+
+🔺 1. 各組員的進度範圍摘要
+請根據每位組員的所有回報，總結出他們目前讀經的進度範圍。
+→ 每位組員請以「🔸」開頭，格式範例如下：
+🔸 子新：耶利米書～約珥書 1；馬太福音～羅馬書 11
+
+🔺 2. 各組員的進展摘要
+請根據每位組員的所有回報，總結出他們時間範圍內讀經的進展。
+→ 每位組員請以「🔸」開頭，格式範例如下：
+🔸 子新：舊約5章、新約7章
+
+🔺 3. 整體觀察與建議
+請總結觀察，例如：
+- 鼓勵有穩定回報者繼續保持
+- 提醒未回報者更新進度
+- 鼓勵彼此代禱、分享亮光與心得
+
+⚠️ 格式要求：
+- 每段請用條列方式撰寫，避免冗長段落。
+- 每個人名前請加「🔸」，每大項目前加「🔺」。
+- 請使用自然語氣（像是群組內的訊息），不要使用粗體、標題格式。
+- 回應請用繁體中文撰寫。
+
+"""
+
+
+
+
+
+
+
+
 payload = {
     "model": MODEL_NAME,
     "messages": [
         {
             "role": "system",
-            "content": system_prompt
+            "content": system_prompt_forall
         },
         {
             "role": "user",
@@ -175,7 +217,10 @@ with open(report_path, "w", encoding="utf-8") as f:
     f.write(summary)
 
 # 發送到 LINE 群組
-line_bot_api.push_message(GROUP_ID, TextSendMessage(text=summary))
+if PUSH_MSG:
+    line_bot_api.push_message(GROUP_ID, TextSendMessage(text=summary))
+    print(f"✅ 已產生 {report_name} 報告並推播。儲存於：{report_path}")
+else:
+    print(f"✅ 已產生 {report_name} 報告。儲存於：{report_path}")
 
-print(f"✅ 已產生 {report_name} 報告並推播。儲存於：{report_path}")
 
